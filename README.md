@@ -12,7 +12,7 @@ target_link_directories(main PRIVATE src/motor)
 # You can edit the Cmakefile as per your convinience
 # include the library in your main.c program file eg.
 ```c
-include src/motor/include/motor.h
+include "src/motor/include/motor.h"
 
 /* you can write the rest of the program*/
 ```
@@ -22,7 +22,7 @@ if multiple motors want to be controlled connect the step pins one after another
 
 ## Example program
 ```c
-include src/motor/include/motor.h
+include "src/motor/include/motor.h"
 
 int dir_pins[4] = {5, 7, 6, 8}; // direction pin can be connected in any order, if four motors are connected four dir pins should be given in a array.
 motor_reset_all_data(); // clears all the stored data.
