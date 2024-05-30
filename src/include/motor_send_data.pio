@@ -1,0 +1,41 @@
+.program motor_send_data
+
+set x, 0
+set pins, 1
+pull block 
+mov isr, osr
+
+.wrap_target
+    pull block
+    mov x, osr
+
+    mov osr, null
+    pull block
+    mov y, osr
+
+    pull block
+    mov exec, isr
+
+    delay_loop:
+    jmp y--, delay_loop [5]
+.wrap   
+
+% c-sdk {
+    void motor_send_data_program_init(PIO pio, uint sm, uint offset, uint strt_pin_no, uint num_axis, float div){
+        pio_sm_config c = motor_send_data_program_get_default_config(offset);
+        
+        for (int x = strt_pin_no; x <= ((num_axis + strt_pin_no) - 1); x++) pio_gpio_init(pio, x);
+
+        uint exec_code = 0b0110000000000000 | num_axis;
+
+        pio_sm_set_consecutive_pindirs(pio, sm, strt_pin_no, num_axis, true);
+
+        sm_config_set_out_pins(&c, strt_pin_no, num_axis);
+        sm_config_set_out_shift(&c, true, false, 32);
+
+        sm_config_set_clkdiv(&c, div);
+        pio_sm_init(pio, sm, offset, &c);
+        pio_sm_put(pio, sm, exec_code);
+        pio_sm_set_enabled(pio, sm, true);
+    }
+%}
