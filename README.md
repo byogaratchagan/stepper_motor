@@ -25,7 +25,7 @@ if multiple motors want to be controlled connect the step pins one after another
 include src/motor/include/motor.h
 
 int dir_pins[4] = {5, 7, 6, 8}; // direction pin can be connected in any order, if four motors are connected four dir pins should be given in a array.
-motor_reset_all_data(); # clears all the stored data.
+motor_reset_all_data(); // clears all the stored data.
 motor_set_pins(0, 3, dir_pins, true); // step pins 0, 1, 2, 3 are connected to four motor drivers.
 
 double jerk [4]= {0, 0, 0, 0} // the unit of jerk is mm/sec^3, the values should be in the order of the motors, the values are set to 0 the function of jerk will be disabled
