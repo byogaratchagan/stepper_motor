@@ -1,7 +1,6 @@
 #include "include/stepper_motor.h"
 #include "include/stepper_motor_send_data.pio.h"
 #include "inttypes.h"
-// something went wrong and pio is asking only one time;
 
 #define MOTOR_PIO_FREQ 45000000
 
@@ -125,10 +124,6 @@ void motor_set_pins(uint stp_strt_pin, uint stp_end_pin, uint *dir_pins, bool di
             gpio_set_dir(dir_pins[x], true);
         }
     }
-    // stepper_motor_send_data_program
-
-    // if (acc_var.pio_initiated_once) pio_remove_program(pio0, &motor_send_data_program, acc_var.offset);
-    // else pio_sm_claim(pio0, 0);
 
     acc_var.offset = pio_add_program(pio0, &stepper_motor_send_data_program);
     stepper_motor_send_data_program_init(pio0, 0, acc_var.offset, stp_strt_pin, acc_var.num_axis, (float)clock_get_hz(clk_sys) / (MOTOR_PIO_FREQ * 6));
@@ -149,11 +144,6 @@ static inline uint64_t motor_fnd(int x){
 
         delay = (t - acc_var.pt[x]);
         acc_var.pt[x] = t;
-        /*
-        printf("%d ", cstep(acc_var.acceleration[x]));
-        printf("delay: %" PRId64 "\n", (t - acc_var.pt[x]));
-        printf("%" PRIu64 "\n", delay[x]);
-        */
         return delay;
     }
 
@@ -164,15 +154,8 @@ static inline uint64_t motor_fnd(int x){
         else{
             if (acc_var.measure){
                 acc_var.measurement[x] += 1;
-                // printf("%d\n", acc_var.measurement[x]);
             }
         }
-        // acc_var.pt[x] = delay[x];
-        /*
-        printf("coasting!!!");
-        printf("delay: %" PRId64 "\n", t);
-        printf("%" PRIu64 "\n", delay[x]);
-        */
         return delay;
     }
 
@@ -184,11 +167,6 @@ static inline uint64_t motor_fnd(int x){
         
         delay = (acc_var.pt[x] - t); 
         acc_var.pt[x] = t;
-        /*
-        printf("decelerating!!!!!");
-        printf("delay: %" PRId64 "\n", (acc_var.pt[x] - t));
-        printf("%" PRIu64 "\n", (uint64_t)delay[x]);
-        */
         return delay;
     }
 
@@ -199,8 +177,6 @@ static inline uint64_t motor_fnd(int x){
 }
 
 static inline void motor_unp(int z){
-    // printf("i: %d\n", acc_var.high_i);
-    // acc_var.high_i += 1;
     bool end = true;
     
     if ((acc_var.wait_p[z] == 0) && (acc_var.min_p[z] == 0)){
@@ -208,13 +184,11 @@ static inline void motor_unp(int z){
         if (fn_delay != -1){
             acc_var.wait_p[z] = ((fn_delay / acc_var.cycle_time) - (acc_var.min / acc_var.cycle_time));
             acc_var.min_p[z] = acc_var.min / acc_var.cycle_time;
-            // printf("wait %u, %d\n", (uint32_t)acc_var.wait_p[z], z);
         }
         else {
             acc_var.wait_p[z] = 0;
             acc_var.min_p[z] = 0;
             acc_var.acceleration_end[z] = true;
-            // printf("delay: %" PRId64 "\n", fn_delay);
         }
 	}
 
@@ -241,7 +215,6 @@ void motor_accelerate(uint32_t *data){
         if ((acc_var.EN_AXIS[x]) && (acc_var.acceleration_end[x] != true)){
             if (acc_var.wait_p[x] != 0){
                 pin_data = pin_data | (1 << x);
-                // printf("pin data %u, x %d 281 \n", pin_data, x);
                 if (first_wp){
                     min_wp = acc_var.wait_p[x];
                     first_wp = false;
@@ -251,7 +224,6 @@ void motor_accelerate(uint32_t *data){
 
             else if ((acc_var.wait_p[x] == 0) && (acc_var.min_p[x] != 0)){
                 pin_data = pin_data & ~(1 << x);
-                // printf("pin data %u, x %d 289\n", pin_data, x);
                 if (first_mp){
                     min_mp = acc_var.min_p[x];
                     first_mp = false;
@@ -262,7 +234,6 @@ void motor_accelerate(uint32_t *data){
             else if ((acc_var.wait_p[x] == 0) && (acc_var.min_p[x] == 0)){
                 motor_unp(x);
                 pin_data = pin_data | (1 << x);
-                // printf("pin data %u, x %d 300\n", pin_data, x);
                 if (first_wp){
                     min_wp = acc_var.wait_p[x];
                     first_wp = false;
@@ -272,16 +243,6 @@ void motor_accelerate(uint32_t *data){
         }
     }
 
-    /*
-    printf("wait_p0: %" PRIu64 " ", acc_var.wait_p[0]);
-    printf("wait_p1: %" PRIu64 "\n", acc_var.wait_p[1]);
-    printf("min_p0: %" PRIu64 " ", acc_var.min_p[0]);
-    printf("min_p1: %" PRIu64 "\n", acc_var.min_p[1]);
-    printf("min_mp: %d\n", min_mp);
-    printf("min_wp: %d\n\n", min_wp);
-    */
-
-    // problem 2 if the majority is min then the other must be less then the majority.
     if (!acc_var.end){
         if (min_mp < min_wp){
             if (min_mp != 0){
@@ -322,7 +283,6 @@ void motor_accelerate(uint32_t *data){
     }
 
     data[2] = pin_data;
-    // printf("pin data: %u\n", pin_data);
     data[1] = sending_delay;
 
     if (acc_var.end) data[0] = 1;
@@ -332,7 +292,6 @@ void motor_accelerate(uint32_t *data){
 void motor_write_dma(){
     if (!acc_var.end){
         motor_accelerate(acc_var.data);
-        // printf("finished_calculating!!!!!");
         dma_hw->ints0 = 1u << acc_var.dma_chan;
         dma_channel_set_read_addr(acc_var.dma_chan, acc_var.data, true);
     }
@@ -341,7 +300,6 @@ void motor_write_dma(){
             acc_var.data[0] = 1;
             acc_var.data[1] = 10;
             acc_var.data[2] = 0;
-            // printf("it continious!!! 282");
             acc_var.first_cancel = false;
             dma_hw->ints0 = 1u << acc_var.dma_chan;
             dma_channel_set_read_addr(acc_var.dma_chan, acc_var.data, true);
@@ -379,8 +337,6 @@ void motor_dma(){
     dma_channel_set_irq0_enabled(acc_var.dma_chan, true);
     irq_set_exclusive_handler(DMA_IRQ_0, motor_write_dma);
     irq_set_enabled(DMA_IRQ_0, true);
-
-    // printf("started!!!!\n");
     motor_write_dma();
 }
 
@@ -432,23 +388,9 @@ void motor_run(bool wait){
 
 void motor_add_data(double *distance, double *velocity, double *jerk_val, double *accl_val, bool *ena_axis, bool strt_mot){
     int x = 0;
-    /*
-    printf("distance %f\n", distance[0]);
-    printf("velocity %f\n", velocity);
-    printf("jerk_val %f\n", jerk_val[0]);
-    printf("accl_val %f\n", accl_val);
-    printf("do i have to strt_mot??? %d\n", (int)strt_mot);
-    */
 
     if (!acc_var.acceleration_started){
-        // printf("entered!!!\n");
         motor_reset_all_data();
-        
-
-        /*
-        printf("pio bit capacity %u\n", acc_var.pio_bit_no);
-        printf("number of axises %d\n", acc_var.num_axis);
-        */
 
         for (x = 0; x < acc_var.num_axis; x ++){
             acc_var.EN_AXIS[x] = ena_axis[x];
@@ -491,11 +433,6 @@ void motor_add_data(double *distance, double *velocity, double *jerk_val, double
             if (acc_var.JERK[x] == 0){
                 int min_d = acc_var.distance[x];
                 int possible_dis = (int)(pow(acc_var.velocity[x], 2) / (2 * acc_var.acceleration[x]));
-                /*
-                printf("possible_dis %d\n", possible_dis);
-                printf("half_dis %d\n", (acc_var.distance[0] / 2));
-                */
-                
                 if ((possible_dis) > (int)(min_d / 2)){ 
                     uint64_t cal_vel = (uint64_t)sqrt(((2 * acc_var.acceleration[x]) * (int)(min_d / 2)));
                     acc_var.velocity[x] = (double)cal_vel;
@@ -514,13 +451,6 @@ void motor_add_data(double *distance, double *velocity, double *jerk_val, double
                 int min_d = acc_var.distance[x];
                 double min_dis = (double)((double)acc_var.JERK[x] * pow(time1, 3)) / (double)6;
 
-                /*
-                printf("min jerk_val: %d", acc_var.JERK[x]);
-                printf("time1: %f\n", time1);
-                printf("min_dis: %d\n", min_dis);
-                printf("min_d: %d\n", min_d);
-                */
-
                 if (min_dis >= (int)(min_d / 2)){
                     double time = cbrt((((double)min_d / (double)2) / (double)acc_var.JERK[x]) * (double)6);
                     acc_var.velocity[x] = (uint)((acc_var.JERK[x] * pow(time, 2)) / 2);
@@ -528,14 +458,6 @@ void motor_add_data(double *distance, double *velocity, double *jerk_val, double
                     acc_var.possible_d[x] = cstep(distance, x);
                     acc_var.decel_x[x] = cstep(distance, x);
                     acc_var.coast_d[x] = cstep(acc_var.distance[x], x) - (cstep(distance, x) * 2);
-                    /*
-                    printf("time: %f\n", time); 
-                    printf("distance = %f\n", distance);
-                    printf("possible_distance = %d\n", acc_var.possible_d[x]);
-                    printf("decel_x = %d\n", acc_var.decel_x[x]);
-                    printf("coast_d = %d\n", acc_var.coast_d[x]);
-                    printf("velocity = %d\n", acc_var.velocity[x]);
-                    */
                 }
                 else{
                     acc_var.possible_d[x] = cstep(min_dis, x);
@@ -543,12 +465,6 @@ void motor_add_data(double *distance, double *velocity, double *jerk_val, double
                     acc_var.coast_d[x] = cstep(acc_var.distance[x], x) - (cstep(min_dis, x) * 2);
                 }
             }
-            /*
-            printf("possible_distance = %" PRIu64 "\n", acc_var.possible_d[x]);
-            printf("decel_x = %" PRIu64 "\n", acc_var.decel_x[x]);
-            printf("coast_d = %" PRIu64 "\n", acc_var.coast_d[x]);
-            printf("velocity = %f\n", acc_var.velocity[x]);\
-            */
         }
 
         for (x = 0; x < acc_var.num_axis; x++){
