@@ -1,5 +1,7 @@
 # Stepper_motor
 
+A stepper motor step signal generator for raspberry pi pico
+
 ## INSTALLATION
 Clone this repository into your projects folder
 
