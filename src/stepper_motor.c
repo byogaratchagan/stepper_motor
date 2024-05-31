@@ -624,9 +624,11 @@ void stop_running(){
         acc_var.end = true;
         acc_var.acceleration_started = false;
     }
-    // pio_sm_clear_fifos(pio0, 0);
+    pio_sm_clear_fifos(pio0, 0);
 }
 
+// In development code.
+/*
 void auto_home_irq(){
     stop_running();
     for (int x = 0; x < acc_var.num_axis; x++){
@@ -778,7 +780,7 @@ void set_endstops(bool *bool_array, uint *pins){
         }
     }
 }
-
+*/
 /*
 void test_dma(){
     // comment the down from here to 
