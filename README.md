@@ -19,6 +19,10 @@ target_link_libraries(main stepper_motor) # i have defined the executable name a
 ## Note
 if multiple motors want to be controlled connect the step pins one after another eg. if two step pins want to be connected and if the first pin connected to GPIO1, the second pin should be connected to GPIO2. 
 
+and the rp2040 chip is need to be overclocked to 270 Mhz you can do this by adding this line to your code 
+```c
+set_sys_clock_khz(270000, true);
+```
 ## Example program
 ```c
 #include <stepper_motor.h>
