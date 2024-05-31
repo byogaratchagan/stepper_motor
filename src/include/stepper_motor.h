@@ -29,24 +29,31 @@ void motor_set_pins(uint stp_strt_pin, uint stp_end_pin, uint *dir_pins, bool di
 // function to clear all the loaded data.
 void motor_reset_all_data();
 
-/*! motor_add_data
+/*! set_motors_mm
 * \brief The function loads all the required data to make a move,
 * \param distance An array of distance according the number of motor.
 * \param velocity Max velocity or speed of the motors.
 * \param jerk_val An array of jerk values according the number of motor.
 * \param accl_val Max acceleration of the motor.
 * \param ena_axis An array of enabled motors.
-* \param jerk_ena True to enable the jerk motion, false to enable the acceleration motion.
 * \param strt_mot True to start the move, false to not to start the move.
 * \sa motor_run()
 */
-void set_motors(double *distance, double *velocity, double *jerk_val, double *accl_val, bool *ena_axis, bool jerk_ena, bool strt_mot);
+void set_motors_mm(double *distance, double *velocity, double *jerk_val, double *accl_val, bool *ena_axis, bool strt_mot);
 
-/*! motor_run
-* \brief the function starts the motor,
-* \param wait if true, it waits till the motor finishes its move, else it will not wait.
+/*! set_motors_steps
+* \brief The function loads all the required data to make a move,
+* \param no_steps An array of number of steps according the number of motor.
+* \param steps_per_second Max velocity or speed of the motors.
+* \param steps_per_second_square Max acceleration of the motor.
+* \param steps_per_second_cube An array of jerk values according the number of motor.
+* \param ena_axis An array of enabled motors.
+* \param strt_mot True to start the move, false to not to start the move.
 * \sa motor_run()
 */
+void set_motors_steps(double *no_steps, double *steps_per_second, double *steps_per_second_square, double *steps_per_second_cube, bool *ena_axis, bool strt_mot);
+
+
 void motor_run(bool wait);
 
 /*! is_motor_running

@@ -1,4 +1,4 @@
-.program motor_send_data
+.program stepper_motor_send_data
 
 set x, 0
 set pins, 1

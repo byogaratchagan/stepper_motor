@@ -1,17 +1,14 @@
 cmake_minimum_required(VERSION 3.12)
 
-include(${PICO_SDK_PATH}/external/pico_sdk_import.cmake)
-include(${PICO_SDK_PATH}/tools/CMakeLists.txt)
-
-pico_sdk_init()
-
 add_subdirectory(include)
 
-add_library(motor_main motor.c)
+add_library(stepper_motor stepper_motor.c)
 
-target_link_libraries(motor_main
+target_link_libraries(stepper_motor
     pico_stdlib
     hardware_dma
     hardware_pio
-    motor_header
+    stepper_motor_h
 )
+
+target_include_directories(stepper_motor PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)

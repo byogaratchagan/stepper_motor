@@ -1,5 +1,5 @@
-#include "include/motor.h"
-#include "include/motor_send_data.pio.h"
+#include "include/stepper_motor.h"
+#include "include/stepper_motor_send_data.pio.h"
 #include "inttypes.h"
 // something went wrong and pio is asking only one time;
 
@@ -61,10 +61,11 @@ struct Acc_var{
     bool run_until;
     bool homed[16];
     bool detected;
+    bool mode;
 
 } acc_var;
 
-#define cstep(x, y) ((uint64_t)((double)x * (double)(acc_var.motor_steps_per_mm[y])))
+#define cstep(x, y) (acc_var.mode ? ((uint64_t)((double)x * (double)(acc_var.motor_steps_per_mm[y]))) : (uint64_t)x)
 
 void set_motor_step_per_mm(uint *steps){
     for (int x = 0; x < acc_var.num_axis; x++){
@@ -122,13 +123,13 @@ void motor_set_pins(uint stp_strt_pin, uint stp_end_pin, uint *dir_pins, bool di
             gpio_set_dir(dir_pins[x], true);
         }
     }
-    
+    // stepper_motor_send_data_program
 
-   // if (acc_var.pio_initiated_once) pio_remove_program(pio0, &motor_send_data_program, acc_var.offset);
-    //else pio_sm_claim(pio0, 0);
+    // if (acc_var.pio_initiated_once) pio_remove_program(pio0, &motor_send_data_program, acc_var.offset);
+    // else pio_sm_claim(pio0, 0);
 
- //   acc_var.offset = pio_add_program(pio0, &motor_send_data_program);
-    motor_send_data_program_init(pio0, 0, acc_var.offset, stp_strt_pin, acc_var.num_axis, (float)clock_get_hz(clk_sys) / (MOTOR_PIO_FREQ * 6));
+    acc_var.offset = pio_add_program(pio0, &stepper_motor_send_data_program);
+    stepper_motor_send_data_program_init(pio0, 0, acc_var.offset, stp_strt_pin, acc_var.num_axis, (float)clock_get_hz(clk_sys) / (MOTOR_PIO_FREQ * 6));
 
     pio_sm_set_enabled(pio0, 0, false);
     acc_var.pio_initiated_once = true;
@@ -141,7 +142,7 @@ static inline uint64_t motor_fnd(int x){
     // Accelerating.
     if (acc_var.accel_x[x] != acc_var.possible_d[x]){
         acc_var.accel_x[x] += 1;
-        if (!acc_var.JERK_EN) t = sqrt((double)(acc_var.accel_x[x]) / (0.5 * (double)cstep(acc_var.acceleration[x], x))) * 45000000;
+        if (acc_var.JERK[x]) t = sqrt((double)(acc_var.accel_x[x]) / (0.5 * (double)cstep(acc_var.acceleration[x], x))) * 45000000;
         else t = cbrt(((double)(acc_var.accel_x[x]) / (double)cstep(acc_var.JERK[x], x)) * 6) * 45000000; // change the jerk data type in functions and write the formula crctly
 
         delay = (t - acc_var.pt[x]);
@@ -156,7 +157,7 @@ static inline uint64_t motor_fnd(int x){
 
     // Coasting.
     if ((acc_var.accel_x[x] == acc_var.possible_d[x]) && (acc_var.coast_d[x] != 0)){
-        delay = (uint64_t)((uint64_t)45000000 / (uint64_t)(acc_var.velocity[x] * (double)(acc_var.motor_steps_per_mm[x])));
+        delay = (uint64_t)((uint64_t)45000000 / cstep(acc_var.velocity[x], x));
         if (!acc_var.run_until) acc_var.coast_d[x] -= 1;
         else{
             if (acc_var.measure){
@@ -176,7 +177,7 @@ static inline uint64_t motor_fnd(int x){
     // Decelerating.
     if ((acc_var.accel_x[x] == acc_var.possible_d[x]) && (acc_var.coast_d[x] == 0) && (acc_var.decel_x[x] != 0)){
         acc_var.decel_x[x] -= 1;
-        if (!acc_var.JERK_EN) t = sqrt((double)(acc_var.decel_x[x]) / (0.5 * (double)cstep(acc_var.acceleration[x], x))) * 45000000;
+        if (acc_var.JERK[x]) t = sqrt((double)(acc_var.decel_x[x]) / (0.5 * (double)cstep(acc_var.acceleration[x], x))) * 45000000;
         else t = cbrt(((double)(acc_var.decel_x[x]) / (double)cstep(acc_var.JERK[x], x)) * 6) * 45000000;
         
         delay = (acc_var.pt[x] - t); 
@@ -427,7 +428,7 @@ void motor_run(bool wait){
     pio_sm_clear_fifos(pio0, 0);
 }
 
-void motor_add_data(double *distance, double *velocity, double *jerk_val, double *accl_val, bool *ena_axis, bool jerk_ena, bool strt_mot){
+void motor_add_data(double *distance, double *velocity, double *jerk_val, double *accl_val, bool *ena_axis, bool strt_mot){
     int x = 0;
     /*
     printf("distance %f\n", distance[0]);
@@ -440,8 +441,6 @@ void motor_add_data(double *distance, double *velocity, double *jerk_val, double
     if (!acc_var.acceleration_started){
         // printf("entered!!!\n");
         motor_reset_all_data();
-
-        acc_var.JERK_EN = jerk_ena;
         
 
         /*
@@ -472,15 +471,22 @@ void motor_add_data(double *distance, double *velocity, double *jerk_val, double
 
         bool first = true;
 
-        if (!jerk_ena){
-            for (int x = 0; x < acc_var.num_axis; x++){
-                if (acc_var.acceleration[x] == 0){
-                    acc_var.possible_d[x] = 0;
-                    acc_var.accel_x[x] = 0;
-                    acc_var.decel_x[x] = 0;
-                    acc_var.coast_d[x] = cstep(acc_var.distance[x], x);
-                    continue;
-                }
+        for (int x = 0; x < acc_var.num_axis; x++){
+            if (!acc_var.EN_AXIS[x]){
+                acc_var.possible_d[x] = 0;
+                acc_var.decel_x[x] = 0;
+                acc_var.coast_d[x] = 0;
+                acc_var.coast_d[x] = 0;
+                continue;
+            }
+            if (acc_var.acceleration[x] == 0){
+                acc_var.possible_d[x] = 0;
+                acc_var.accel_x[x] = 0;
+                acc_var.decel_x[x] = 0;
+                acc_var.coast_d[x] = cstep(acc_var.distance[x], x);
+                continue;
+            }
+            if (acc_var.JERK[x] == 0){
                 int min_d = acc_var.distance[x];
                 int possible_dis = (int)(pow(acc_var.velocity[x], 2) / (2 * acc_var.acceleration[x]));
                 /*
@@ -491,42 +497,17 @@ void motor_add_data(double *distance, double *velocity, double *jerk_val, double
                 if ((possible_dis) > (int)(min_d / 2)){ 
                     uint64_t cal_vel = (uint64_t)sqrt(((2 * acc_var.acceleration[x]) * (int)(min_d / 2)));
                     acc_var.velocity[x] = (double)cal_vel;
-                    if (acc_var.EN_AXIS[x]){
-                        acc_var.possible_d[x] = (int)(cstep(min_d, x) / 2);
-                        acc_var.decel_x[x] = (int)(cstep(min_d, x) / 2);
-                        acc_var.coast_d[x] = 0;
-                    }
-                    else{
-                        acc_var.possible_d[x] = 0;
-                        acc_var.decel_x[x] = 0;
-                        acc_var.coast_d[x] = 0;
-                    }
+                    acc_var.possible_d[x] = (int)(cstep(min_d, x) / 2);
+                    acc_var.decel_x[x] = (int)(cstep(min_d, x) / 2);
+                    acc_var.coast_d[x] = 0;
                 }
-
                 else{
-                    if (acc_var.EN_AXIS[x]){
-                        acc_var.possible_d[x] = cstep(possible_dis, x);
-                        acc_var.decel_x[x] = cstep(possible_dis, x);
-                        acc_var.coast_d[x] = (cstep(acc_var.distance[x], x) - (acc_var.possible_d[x] * 2));
-                    }
-                    else{
-                        acc_var.possible_d[x] = 0;
-                        acc_var.decel_x[x] = 0;
-                        acc_var.coast_d[x] = 0;
-                    }
+                    acc_var.possible_d[x] = cstep(possible_dis, x);
+                    acc_var.decel_x[x] = cstep(possible_dis, x);
+                    acc_var.coast_d[x] = (cstep(acc_var.distance[x], x) - (acc_var.possible_d[x] * 2));
                 }
             }
-        }
-        else{
-            for (int x = 0; x < acc_var.num_axis; x++){
-                if (acc_var.acceleration[x] == 0){
-                    acc_var.possible_d[x] = 0;
-                    acc_var.accel_x[x] = 0;
-                    acc_var.decel_x[x] = 0;
-                    acc_var.coast_d[x] = cstep(acc_var.distance[x], x);
-                    continue;
-                }
-
+            else{
                 double time1 = sqrt((acc_var.velocity[x] / (double)acc_var.JERK[x]) * 2);
                 int min_d = acc_var.distance[x];
                 double min_dis = (double)((double)acc_var.JERK[x] * pow(time1, 3)) / (double)6;
@@ -542,43 +523,30 @@ void motor_add_data(double *distance, double *velocity, double *jerk_val, double
                     double time = cbrt((((double)min_d / (double)2) / (double)acc_var.JERK[x]) * (double)6);
                     acc_var.velocity[x] = (uint)((acc_var.JERK[x] * pow(time, 2)) / 2);
                     double distance = ((acc_var.JERK[x] * pow(time, 3)) / (double)(6));
-                    
+                    acc_var.possible_d[x] = cstep(distance, x);
+                    acc_var.decel_x[x] = cstep(distance, x);
+                    acc_var.coast_d[x] = cstep(acc_var.distance[x], x) - (cstep(distance, x) * 2);
                     /*
-                    printf("time: %f\n", time);
-                    */
-
-                    if (acc_var.EN_AXIS[x]){
-                        acc_var.possible_d[x] = cstep(distance, x);
-                        acc_var.decel_x[x] = cstep(distance, x);
-                        acc_var.coast_d[x] = cstep(acc_var.distance[x], x) - (cstep(distance, x) * 2);
-                    }
-                    else{
-                        acc_var.possible_d[x] = 0;
-                        acc_var.decel_x[x] = 0;
-                        acc_var.coast_d[x] = 0;
-                    }
-                    
-                    /*
+                    printf("time: %f\n", time); 
                     printf("distance = %f\n", distance);
-                    printf("possible_distance = %d\n", acc_var.possible_d[0]);
-                    printf("decel_x = %d\n", acc_var.decel_x[0]);
-                    printf("coast_d = %d\n", acc_var.coast_d[0]);
+                    printf("possible_distance = %d\n", acc_var.possible_d[x]);
+                    printf("decel_x = %d\n", acc_var.decel_x[x]);
+                    printf("coast_d = %d\n", acc_var.coast_d[x]);
+                    printf("velocity = %d\n", acc_var.velocity[x]);
                     */
                 }
-
                 else{
-                    if (acc_var.EN_AXIS[x]){
-                        acc_var.possible_d[x] = cstep(min_dis, x);
-                        acc_var.decel_x[x] = cstep(min_dis, x);
-                        acc_var.coast_d[x] = cstep(acc_var.distance[x], x) - (cstep(min_dis, x) * 2);
-                    }
-                    else{
-                        acc_var.possible_d[x] = 0;
-                        acc_var.decel_x[x] = 0;
-                        acc_var.coast_d[x] = 0;
-                    }
+                    acc_var.possible_d[x] = cstep(min_dis, x);
+                    acc_var.decel_x[x] = cstep(min_dis, x);
+                    acc_var.coast_d[x] = cstep(acc_var.distance[x], x) - (cstep(min_dis, x) * 2);
                 }
             }
+            /*
+            printf("possible_distance = %" PRIu64 "\n", acc_var.possible_d[x]);
+            printf("decel_x = %" PRIu64 "\n", acc_var.decel_x[x]);
+            printf("coast_d = %" PRIu64 "\n", acc_var.coast_d[x]);
+            printf("velocity = %f\n", acc_var.velocity[x]);\
+            */
         }
 
         for (x = 0; x < acc_var.num_axis; x++){
@@ -597,10 +565,18 @@ bool is_motor_running(){
     return !acc_var.end_process;
 }
 
-void set_motors(double *distance, double *velocity, double *jerk_val, double *accl_val, bool *ena_axis, bool jerk_ena, bool strt_mot){
+void set_motors_mm(double *distance, double *velocity, double *accl_val, double *jerk_val, bool *ena_axis, bool strt_mot){
+    acc_var.mode = true;
     acc_var.run_until = false;
     acc_var.measure = false;
-    motor_add_data(distance, velocity, jerk_val, accl_val, ena_axis, jerk_ena, strt_mot);
+    motor_add_data(distance, velocity, jerk_val, accl_val, ena_axis, strt_mot);
+}
+
+void set_motors_steps(double *no_steps, double *steps_per_second, double *steps_per_second_square, double *steps_per_second_cube, bool *ena_axis, bool strt_mot){
+    acc_var.mode = false;
+    acc_var.run_until = false;
+    acc_var.measure = false;
+    motor_add_data(no_steps, steps_per_second, steps_per_second_cube, steps_per_second_square, ena_axis, strt_mot);
 }
 
 void run_until(bool *axis_bool, double *velocity, bool start){
@@ -611,10 +587,14 @@ void run_until(bool *axis_bool, double *velocity, bool start){
     double jerk[16] = {};
     double acceleration[16] = {};
     for (int x = 0; x < acc_var.num_axis; x++){
-        if (axis_bool[x]) distance[x] = 1;
+        if (axis_bool[x]){
+            distance[x] = 1;
+            acceleration[x] = 0;
+            jerk[x] = 0;
+        }
         else distance[x] = 0;
     }
-    motor_add_data(distance, velocity, jerk, acceleration, axis_bool, false, start);
+    motor_add_data(distance, velocity, jerk, acceleration, axis_bool, start);
 }
 
 void r_run_until(bool *axis_bool, int *distance_travelled, double *velocity, bool start){
@@ -629,7 +609,7 @@ void r_run_until(bool *axis_bool, int *distance_travelled, double *velocity, boo
         if (axis_bool[x]) distance[x] = 1;
         else distance[x] = 0;
     }
-    motor_add_data(distance, velocity, jerk, acceleration, axis_bool, false, start);
+    motor_add_data(distance, velocity, jerk, acceleration, axis_bool, start);
 }
 
 void stop_running(){
@@ -684,7 +664,7 @@ void auto_home(bool *axis_bool, double *measurement){
                     bool axis_bool2[16];
                     axis_bool2[x] = true;
 
-                    motor_add_data(distance, velocity, acceleration, jerk, axis_bool2, false, true); // retract.
+                    motor_add_data(distance, velocity, acceleration, jerk, axis_bool2, true); // retract.
                     run_until(axis_bool2, velocity2, false);
                     motor_run(false);
                     while (gpio_get(acc_var.endstops_pins[x])){}
@@ -720,7 +700,7 @@ void auto_home(bool *axis_bool, double *measurement){
                 double velocity2[16];
                 velocity2[x] = 3;
                 
-                motor_add_data(distance, velocity, jerk, acceleration, axis_bool2, false, true);
+                motor_add_data(distance, velocity, jerk, acceleration, axis_bool2, true);
                 // printf("remove hand from the switch\n");
                 sleep_ms(2000);
                 // printf("gpio state = %d\n", gpio_get(acc_var.endstops_pins[x]));

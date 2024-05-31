@@ -1,5 +1,5 @@
 add_library(
-    motor_header INTERFACE
-    motor.h
-    motor_send_data.pio.h
+    stepper_motor_h INTERFACE
+    stepper_motor.h
+    stepper_motor_send_data.pio.h
 )

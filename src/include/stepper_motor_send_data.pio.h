@@ -8,14 +8,14 @@
 #include "hardware/pio.h"
 #endif
 
-// --------------- //
-// motor_send_data //
-// --------------- //
+// ----------------------- //
+// stepper_motor_send_data //
+// ----------------------- //
 
-#define motor_send_data_wrap_target 4
-#define motor_send_data_wrap 11
+#define stepper_motor_send_data_wrap_target 4
+#define stepper_motor_send_data_wrap 11
 
-static const uint16_t motor_send_data_program_instructions[] = {
+static const uint16_t stepper_motor_send_data_program_instructions[] = {
     0xe020, //  0: set    x, 0                       
     0xe001, //  1: set    pins, 1                    
     0x80a0, //  2: pull   block                      
@@ -33,20 +33,20 @@ static const uint16_t motor_send_data_program_instructions[] = {
 };
 
 #if !PICO_NO_HARDWARE
-static const struct pio_program motor_send_data_program = {
-    .instructions = motor_send_data_program_instructions,
+static const struct pio_program stepper_motor_send_data_program = {
+    .instructions = stepper_motor_send_data_program_instructions,
     .length = 12,
     .origin = -1,
 };
 
-static inline pio_sm_config motor_send_data_program_get_default_config(uint offset) {
+static inline pio_sm_config stepper_motor_send_data_program_get_default_config(uint offset) {
     pio_sm_config c = pio_get_default_sm_config();
-    sm_config_set_wrap(&c, offset + motor_send_data_wrap_target, offset + motor_send_data_wrap);
+    sm_config_set_wrap(&c, offset + stepper_motor_send_data_wrap_target, offset + stepper_motor_send_data_wrap);
     return c;
 }
 
-    void motor_send_data_program_init(PIO pio, uint sm, uint offset, uint strt_pin_no, uint num_axis, float div){
-        pio_sm_config c = motor_send_data_program_get_default_config(offset);
+    void stepper_motor_send_data_program_init(PIO pio, uint sm, uint offset, uint strt_pin_no, uint num_axis, float div){
+        pio_sm_config c = stepper_motor_send_data_program_get_default_config(offset);
         for (int x = strt_pin_no; x <= ((num_axis + strt_pin_no) - 1); x++) pio_gpio_init(pio, x);
         uint exec_code = 0b0110000000000000 | num_axis;
         pio_sm_set_consecutive_pindirs(pio, sm, strt_pin_no, num_axis, true);
