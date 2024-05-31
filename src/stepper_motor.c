@@ -10,7 +10,7 @@ struct Acc_var{
     double distance[32];
     double velocity[32];
     double acceleration[32];
-    int *measurement;
+    uint64_t *measurement;
 
     bool EN_AXIS[32];
     bool JERK_EN;
@@ -419,13 +419,14 @@ void motor_run(bool wait){
     pio_sm_set_enabled(pio0, 0, true);
     pio_sm_exec(pio0, 0, pio_encode_jmp(4 + acc_var.offset));
     motor_dma();
+    acc_var.end_process = false;
     if (wait){
         gpio_put(PICO_DEFAULT_LED_PIN, false);
         while (acc_var.end_process != true){
             tight_loop_contents();
         }
+        pio_sm_clear_fifos(pio0, 0);
     }
-    pio_sm_clear_fifos(pio0, 0);
 }
 
 void motor_add_data(double *distance, double *velocity, double *jerk_val, double *accl_val, bool *ena_axis, bool strt_mot){
@@ -594,11 +595,11 @@ void run_until(bool *axis_bool, double *velocity, bool start){
         }
         else distance[x] = 0;
     }
-    motor_add_data(distance, velocity, jerk, acceleration, axis_bool, start);
+    motor_add_data(distance, velocity, jerk, acceleration, axis_bool, false);
+    if (start) motor_run(false);
 }
 
-void r_run_until(bool *axis_bool, int *distance_travelled, double *velocity, bool start){
-    uint data1 = 0;
+void r_run_until(bool *axis_bool, uint64_t *distance_travelled, double *velocity, bool start){
     acc_var.run_until = true;
     acc_var.measure = true;
     acc_var.measurement = distance_travelled;
@@ -606,16 +607,24 @@ void r_run_until(bool *axis_bool, int *distance_travelled, double *velocity, boo
     double jerk[16] = {};
     double acceleration[16] = {};
     for (int x = 0; x < acc_var.num_axis; x++){
-        if (axis_bool[x]) distance[x] = 1;
+        if (axis_bool[x]){
+            distance[x] = 1;
+            jerk[x] = 0;
+            acceleration[x] = 0;
+        }
         else distance[x] = 0;
     }
-    motor_add_data(distance, velocity, jerk, acceleration, axis_bool, start);
+    motor_add_data(distance, velocity, jerk, acceleration, axis_bool, false);
+    if (start) motor_run(false);
 }
 
 void stop_running(){
-    acc_var.run_until = false;
-    acc_var.end = true;
-    acc_var.acceleration_started = false;
+    while (is_motor_running()){
+        acc_var.run_until = false;
+        acc_var.end = true;
+        acc_var.acceleration_started = false;
+    }
+    // pio_sm_clear_fifos(pio0, 0);
 }
 
 void auto_home_irq(){
@@ -677,7 +686,7 @@ void auto_home(bool *axis_bool, double *measurement){
     }
     // printf("going running\n");
     double velocity[16] = {};
-    int distance_travelled[16] = {};
+    uint64_t distance_travelled[16] = {};
     for (int x = 0; x < 16; x++) velocity[x] = 100;
     r_run_until(bool_array, distance_travelled, velocity, false);
     motor_run(false);
