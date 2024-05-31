@@ -28,6 +28,8 @@ set_sys_clock_khz(270000, true);
 ## Example program
 ```c
 #include <stepper_motor.h>
+#include <stdlib.h>
+#include <stdio.h>
 
 int main(){
     stdio_init_all();
