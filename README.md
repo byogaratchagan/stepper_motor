@@ -1,4 +1,4 @@
-# stepper_motor
+# Stepper_motor
 
 ## INSTALLATION
 Clone this repository into your projects folder
