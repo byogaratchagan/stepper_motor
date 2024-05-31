@@ -33,6 +33,8 @@ int main(){
 
     int dir_pins[4] = {5, 7, 6, 8}; // direction pin can be connected in any order, if four motors are connected four dir pins should be given in a array.
     int step_per_mm[4] = {100, 100, 100, 100}; // you need to set for how many step a mm of distance is crossed.
+
+    motor_init(1);
     motor_reset_all_data(); // clears all the stored data.
     motor_set_pins(0, 3, dir_pins, false); // step pins 0, 1, 2, 3 are connected to four motor drivers.
     set_motor_step_per_mm(step_per_mm);
