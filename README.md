@@ -43,7 +43,7 @@ int main(){
     double velocity[4] = {50, 10, 20, 10}; // unit: mm/sec
     double acceleration[4] = {0, 0, 100, 0}; // unit: mm/sec^2 if the values are set to 0 the acceleration mode will be turned off and only the velocity mode takes place
     double distance[4] = {100, 100, 100, 100};
-    bool enable[4] = {true, false, true, false}; // only the true specified motor alone enabled if false the motor does not move.
+    bool enable[4] = {true, true, true, true}; // only the true specified motor alone enabled if false the motor does not move.
 
     set_motors_mm(distance, velocity, acceleration, jerk, enable, false); // the last argument is set to true if the motor want to be runned immediatly
     motor_run(true); // true is given to wait until the motion completes or false to not to wait and move to the next line
