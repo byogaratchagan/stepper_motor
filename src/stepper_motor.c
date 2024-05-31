@@ -4,7 +4,6 @@
 // something went wrong and pio is asking only one time;
 
 #define MOTOR_PIO_FREQ 45000000
-#define MOTOR_LOW_TIME 45
 
 struct Acc_var{
     double distance[32];
@@ -67,6 +66,10 @@ struct Acc_var{
 
 #define cstep(x, y) (acc_var.mode ? ((uint64_t)((double)x * (double)(acc_var.motor_steps_per_mm[y]))) : (uint64_t)x)
 
+void motor_init(uint64_t min_low_time){
+    acc_var.min = min_low_time * 45;  
+}
+
 void set_motor_step_per_mm(uint *steps){
     for (int x = 0; x < acc_var.num_axis; x++){
         acc_var.motor_steps_per_mm[x] = steps[x];
@@ -75,7 +78,6 @@ void set_motor_step_per_mm(uint *steps){
 
 void set_all_to_zero(){
     acc_var.num_axis = 0;
-    acc_var.min = 0;
     acc_var.cycle_time = 0;
     acc_var.data[0] = 0;
     acc_var.data[1] = 0;
@@ -390,7 +392,6 @@ void motor_reset_all_data(){
     acc_var.end = false;
     acc_var.end_process = false;
     acc_var.acceleration_started = false;
-    acc_var.min = MOTOR_LOW_TIME;
     acc_var.cycle_time = 45000000 / MOTOR_PIO_FREQ;
     for (int x = 0; x < 32; x++) acc_var.velocity[x] = 0;
 

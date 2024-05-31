@@ -14,6 +14,12 @@
 #include <hardware/clocks.h>
 
 
+/*! motor_init
+* \brief initiate the stepper motor library with the minimum step pin low time in microseconds, to find the min step low time see the datasheet of the stepper motor driver.
+* \param min_low_time give the min step low time in microseconds.
+*/
+void motor_init(uint64_t min_low_time);
+
 void set_motor_step_per_mm(uint *steps);
 
 /*! motor_set_pins
