@@ -2,6 +2,11 @@
 
 A stepper motor step signal generator/stepper motor speed control library for raspberry pi pico
 
+# Features
+- It can support to generate upto 32 step signals.
+- It can support a maximum upto 16 driver (16 pins for step and 16 pins for dir).
+- It supports the control of velocity, acceleration, jerk and distance.
+
 ## INSTALLATION
 Clone this repository into your projects folder
 
@@ -19,9 +24,9 @@ target_link_libraries(main stepper_motor) # i have defined the executable name a
 ```
 
 ## Note
-if multiple motors want to be controlled connect the step pins one after another eg. if two step pins want to be connected and if the first pin connected to GPIO1, the second pin should be connected to GPIO2. 
+If multiple motors want to be controlled connect the step pins one after another eg. if two step pins want to be connected and if the first pin connected to GPIO1, the second pin should be connected to GPIO2. 
 
-and the rp2040 chip is need to be overclocked to 270 Mhz you can do this by adding this line to your code 
+And the RP2040 chip is need to be overclocked to 270 Mhz you can do this by adding this line to your code 
 ```c
 set_sys_clock_khz(270000, true);
 ```
