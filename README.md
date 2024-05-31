@@ -4,14 +4,14 @@
 Clone this repository into your projects folder
 
 # Add these lines to the CMakeLists.txt of your project
-```sh
+```cmake
 add_subdirectory(stepper_motor/src)
-target_link_libraries(main stepper_motor)
+target_link_libraries(main stepper_motor) # i have defined the executable name as main if your project uses different name please change it. 
 ```
 # You can edit the Cmakefile as per your convinience
 # include the library in your main.c program file eg.
 ```c
-#include "src/motor/include/motor.h"
+#include <stepper_motor.h>
 
 /* you can write the rest of the program*/
 ```
@@ -25,7 +25,7 @@ if multiple motors want to be controlled connect the step pins one after another
 
 int main(){
     stdio_init_all();
-    set_sys_clock_khz(270000, true);
+    set_sys_clock_khz(270000, true); // overclocking is necessary to work with this library or else timing mismatch can occur.
 
     int dir_pins[4] = {5, 7, 6, 8}; // direction pin can be connected in any order, if four motors are connected four dir pins should be given in a array.
     int step_per_mm[4] = {100, 100, 100, 100}; // you need to set for how many step a mm of distance is crossed.
@@ -41,12 +41,8 @@ int main(){
     double acceleration[4] = {0, 0, 100, 0}; // unit: mm/sec^2 if the values are set to 0 the acceleration mode will be turned off and only the velocity mode takes place
     double distance[4] = {100, 100, 100, 100};
     bool enable[4] = {true, false, true, false}; // only the true specified motor alone enabled if false the motor does not move.
-    // return 0;
-    /*
-    the last 6th argument defines whether jerk mode want to enabled or not, and if the motor should be runned immediatly
-    the last argument should be given as true
-    */
-    set_motors_steps(distance, velocity, acceleration, jerk, enable, false);
+
+    set_motors_mm(distance, velocity, acceleration, jerk, enable, false); // the last argument is set to true if the motor want to be runned immediatly
     motor_run(true); // true is given to wait until the motion completes or false to not to wait and move to the next line
 }
 ```
