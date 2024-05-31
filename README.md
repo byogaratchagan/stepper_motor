@@ -32,9 +32,6 @@ int main(){
     motor_reset_all_data(); // clears all the stored data.
     motor_set_pins(0, 3, dir_pins, false); // step pins 0, 1, 2, 3 are connected to four motor drivers.
     set_motor_step_per_mm(step_per_mm);
-    // bool endstops[4] = {false, false, false, false};
-    // int pins[4] = {0, 0, 0, 0};
-    // set_endstops(endstops, pins);
 
     double jerk [4]= {0, 0, 10, 0}; // the unit of jerk is mm/sec^3, the values should be in the order of the motors, the values are set to 0 the function of jerk will be disabled
     double velocity[4] = {50, 10, 20, 10}; // unit: mm/sec
