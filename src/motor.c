@@ -1,5 +1,5 @@
 #include "include/motor.h"
-#include "../build/motor/include/motor_send_data.pio.h"
+#include "include/motor_send_data.pio.h"
 #include "inttypes.h"
 // something went wrong and pio is asking only one time;
 
@@ -124,10 +124,10 @@ void motor_set_pins(uint stp_strt_pin, uint stp_end_pin, uint *dir_pins, bool di
     }
     
 
-    if (acc_var.pio_initiated_once) pio_remove_program(pio0, &motor_send_data_program, acc_var.offset);
-    else pio_sm_claim(pio0, 0);
+   // if (acc_var.pio_initiated_once) pio_remove_program(pio0, &motor_send_data_program, acc_var.offset);
+    //else pio_sm_claim(pio0, 0);
 
-    acc_var.offset = pio_add_program(pio0, &motor_send_data_program);
+ //   acc_var.offset = pio_add_program(pio0, &motor_send_data_program);
     motor_send_data_program_init(pio0, 0, acc_var.offset, stp_strt_pin, acc_var.num_axis, (float)clock_get_hz(clk_sys) / (MOTOR_PIO_FREQ * 6));
 
     pio_sm_set_enabled(pio0, 0, false);
