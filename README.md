@@ -7,7 +7,7 @@ A stepper motor step signal generator/stepper motor speed control library for ra
 - It can support a maximum upto 16 driver (16 pins for step and 16 pins for dir).
 - It supports the control of velocity, acceleration, jerk and distance.
 - It can controll all the motors simultaneously.
-- It is capable of producting a step signal frequency upto 200 khz(for one stepper motor) by the use of pio and dma control (the max operatable frequency depends on the number of motors)
+- It is capable of producting a step signal frequency upto 100 khz(for one stepper motor) by the use of pio and dma control (the max operatable frequency depends on the number of motors connected).
 
 ## INSTALLATION
 Clone this repository into your projects folder
