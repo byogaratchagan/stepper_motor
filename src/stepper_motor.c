@@ -148,8 +148,8 @@ static inline uint64_t motor_fnd(int x){
     }
 
     // Coasting.
-    if ((acc_var.accel_x[x] == acc_var.possible_d[x]) && (acc_var.coast_d[x] != 0)){
-        delay = (uint64_t)((uint64_t)45000000 / cstep(acc_var.velocity[x], x));
+    if ((acc_var.accel_x[x] == acc_var.possible_d[x]) && acc_var.coast_d[x]){
+        delay = (uint64_t)(45000000) / cstep(acc_var.velocity[x], x);
         if (!acc_var.run_until) acc_var.coast_d[x] -= 1;
         else{
             if (acc_var.measure){
@@ -160,7 +160,7 @@ static inline uint64_t motor_fnd(int x){
     }
 
     // Decelerating.
-    if ((acc_var.accel_x[x] == acc_var.possible_d[x]) && (acc_var.coast_d[x] == 0) && (acc_var.decel_x[x] != 0)){
+    if ((acc_var.accel_x[x] == acc_var.possible_d[x]) && !acc_var.coast_d[x] && acc_var.decel_x[x]){
         acc_var.decel_x[x] -= 1;
         if (acc_var.JERK[x]) t = sqrt((double)(acc_var.decel_x[x]) / (0.5 * (double)cstep(acc_var.acceleration[x], x))) * 45000000;
         else t = cbrt(((double)(acc_var.decel_x[x]) / (double)cstep(acc_var.JERK[x], x)) * 6) * 45000000;
@@ -171,7 +171,7 @@ static inline uint64_t motor_fnd(int x){
     }
 
     // Ending and resulting null.
-    if ((acc_var.accel_x[x] == acc_var.possible_d[x]) && (acc_var.coast_d[x] == 0) && (acc_var.decel_x[x] == 0)){
+    if ((acc_var.accel_x[x] == acc_var.possible_d[x]) && !acc_var.coast_d[x] && !acc_var.decel_x[x]){
         return -1;
     }
 }
@@ -179,11 +179,11 @@ static inline uint64_t motor_fnd(int x){
 static inline void motor_unp(int z){
     bool end = true;
     
-    if ((acc_var.wait_p[z] == 0) && (acc_var.min_p[z] == 0)){
+    if (!acc_var.wait_p[z] && !acc_var.min_p[z]){
         uint64_t fn_delay = motor_fnd(z);
         if (fn_delay != -1){
-            acc_var.wait_p[z] = ((fn_delay / acc_var.cycle_time) - (acc_var.min / acc_var.cycle_time));
             acc_var.min_p[z] = acc_var.min / acc_var.cycle_time;
+            acc_var.wait_p[z] = fn_delay  - acc_var.min_p[z];
         }
         else {
             acc_var.wait_p[z] = 0;
@@ -192,7 +192,9 @@ static inline void motor_unp(int z){
         }
 	}
 
-    for (int y = 0; y < acc_var.num_axis; y++) if (!acc_var.acceleration_end[y]) end = false;
+    for (int y = 0; y < acc_var.num_axis; y++){
+        if (!acc_var.acceleration_end[y]) return;
+    }
 
     if (end) acc_var.end = true;
 }
@@ -209,11 +211,13 @@ void motor_accelerate(uint32_t *data){
     bool first_mp = true;
 
     uint32_t sending_delay = 0;
+
+    register uint x = 0;
     
     // finding the minimum delay.
-    for (int x = 0; x < acc_var.num_axis; x++){
-        if ((acc_var.EN_AXIS[x]) && (acc_var.acceleration_end[x] != true)){
-            if (acc_var.wait_p[x] != 0){
+    for (x = 0; x < acc_var.num_axis; x++){
+        if (acc_var.EN_AXIS[x] && !acc_var.acceleration_end[x]){
+            if (acc_var.wait_p[x]){
                 pin_data = pin_data | (1 << x);
                 if (first_wp){
                     min_wp = acc_var.wait_p[x];
@@ -222,7 +226,7 @@ void motor_accelerate(uint32_t *data){
                 else min_wp = MIN(min_wp ,acc_var.wait_p[x]);
             }
 
-            else if ((acc_var.wait_p[x] == 0) && (acc_var.min_p[x] != 0)){
+            else if (!acc_var.wait_p[x] && acc_var.min_p[x]){
                 pin_data = pin_data & ~(1 << x);
                 if (first_mp){
                     min_mp = acc_var.min_p[x];
@@ -231,7 +235,7 @@ void motor_accelerate(uint32_t *data){
                 else min_mp = MIN(min_mp ,acc_var.min_p[x]);
             }
 
-            else if ((acc_var.wait_p[x] == 0) && (acc_var.min_p[x] == 0)){
+            else{
                 motor_unp(x);
                 pin_data = pin_data | (1 << x);
                 if (first_wp){
@@ -245,17 +249,17 @@ void motor_accelerate(uint32_t *data){
 
     if (!acc_var.end){
         if (min_mp < min_wp){
-            if (min_mp != 0){
+            if (min_mp){
                 sending_delay = min_mp;
-                for (register int x = 0; x < acc_var.num_axis; x++){
-                    if (acc_var.wait_p[x] != 0) acc_var.wait_p[x] -= min_mp;
+                for (x = 0; x < acc_var.num_axis; x++){
+                    if (acc_var.wait_p[x]) acc_var.wait_p[x] -= min_mp;
                     else acc_var.min_p[x] -= min_mp;
                 }
             }
-            else if ((min_mp == 0) && (min_wp != 0)){
+            else if (!min_mp && min_wp){
                 sending_delay = min_wp;
-                for (register int x = 0; x < acc_var.num_axis; x++){
-                    if (acc_var.wait_p[x] != 0) acc_var.wait_p[x] -= min_wp;
+                for (x = 0; x < acc_var.num_axis; x++){
+                    if (acc_var.wait_p[x]) acc_var.wait_p[x] -= min_wp;
                     else acc_var.min_p[x] -= min_wp;
                 }
             }
@@ -263,15 +267,15 @@ void motor_accelerate(uint32_t *data){
         if (min_mp >= min_wp){
             if (min_wp != 0){
                 sending_delay = min_wp;
-                for (register int x = 0; x < acc_var.num_axis; x++){
-                    if (acc_var.wait_p[x] != 0) acc_var.wait_p[x] -= min_wp;
+                for (x = 0; x < acc_var.num_axis; x++){
+                    if (acc_var.wait_p[x]) acc_var.wait_p[x] -= min_wp;
                     else acc_var.min_p[x] -= min_wp;
                 }
             }
-            else if ((min_wp == 0) && (min_mp != 0)){
+            else if (!min_wp && min_mp){
                 sending_delay = min_mp;
-                for (register int x = 0; x < acc_var.num_axis; x++){
-                    if (acc_var.wait_p[x] != 0) acc_var.wait_p[x] -= min_mp;
+                for (x = 0; x < acc_var.num_axis; x++){
+                    if (acc_var.wait_p[x]) acc_var.wait_p[x] -= min_mp;
                     else acc_var.min_p[x] -= min_mp;
                 }
             }
