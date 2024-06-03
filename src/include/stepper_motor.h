@@ -20,6 +20,8 @@
 */
 void motor_init(float min_low_time);
 
+void test();
+
 void set_motor_step_per_mm(uint *steps);
 
 /*! motor_set_pins
