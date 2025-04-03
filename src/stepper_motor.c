@@ -511,10 +511,9 @@ void motor_run(bool wait){
     pio_sm_clear_fifos(pio0, 0);
     pio_sm_set_enabled(pio0, 0, true);
     pio_sm_exec(pio0, 0, pio_encode_jmp(4 + _offset));
-    motor_dma();
     _end_process = false;
+    motor_dma();
     if (wait){
-        // gpio_put(PICO_DEFAULT_LED_PIN, false);
         while (_end_process != true){
             tight_loop_contents();
         }
