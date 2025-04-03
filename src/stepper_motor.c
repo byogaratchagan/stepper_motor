@@ -514,7 +514,7 @@ void motor_run(bool wait){
     motor_dma();
     _end_process = false;
     if (wait){
-        gpio_put(PICO_DEFAULT_LED_PIN, false);
+        // gpio_put(PICO_DEFAULT_LED_PIN, false);
         while (_end_process != true){
             tight_loop_contents();
         }
