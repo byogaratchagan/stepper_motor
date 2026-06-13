@@ -263,8 +263,8 @@ static __inline void motor_accelerate(){
     }
 
     _end = true;
-    for (x = 0; x < _num_axis; ++x){
-        if (!_acceleration_end[x]){
+    for (int y = 0; y < _num_axis; ++y){
+        if (!_acceleration_end[y]){
             _end = false;
             if (min_mp < min_wp){
                 if (min_mp){
