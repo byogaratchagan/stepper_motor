@@ -69,7 +69,7 @@ uint64_t min_wp = 0;
 uint64_t min_mp = 0;
 
 #define cstep(x, y) (_mode ? ((uint64_t)((double)x * (double)(_motor_steps_per_mm[y]))) : (uint64_t)x)
-#define _MIN(x, y) (x > y ? x: y)
+#define _MIN(x, y) (x < y ? x: y)
 
 void motor_init(float min_low_time){
     _min = min_low_time * 45;  
